@@ -63,7 +63,7 @@ function bb_findHeader(rows,required,maxScan=15){const req=required.map(x=>x.toU
 function bb_parseSsft(rows){rows=unpipe(rows);const h=bb_findHeader(rows,['PRDCD','STOCK','PKM','MINOR']);if(h.row<0)throw Error('SS-FT: kolom PRDCD/STOCK/PKM/MINOR tidak ditemukan. Header terbaca: '+headRow(rows,0).filter(Boolean).slice(0,14).join(', '));const m=hmap(h.headers),stats=new Map();for(let i=h.row+1;i<rows.length;i++){const r=rows[i]||[],id=norm(r[m.PRDCD]);if(!id)continue;const stock=num(r[m.STOCK]),pkm=num(r[m.PKM]),minor=num(r[m.MINOR]);let ket2='';if(pkm===0)ket2='PKM Toko 0';else if(stock+minor>pkm)ket2='Over Stock Toko';const est=minor>0?Math.max(0,Math.floor((pkm-stock)/minor)*minor):Math.max(0,pkm-stock);if(!stats.has(id))stats.set(id,{jtd:0,over:0,pkm0:0,est:0});const x=stats.get(id);x.jtd++;if(ket2==='Over Stock Toko')x.over++;if(ket2==='PKM Toko 0')x.pkm0++;x.est+=est}return stats}
 
 function bb_mget(mrow,key){return mrow&&mrow.map[key]!==undefined?mrow.row[mrow.map[key]]:''}
-function bb_classifyItem(pm,pomggIdx,stockMap,histagMap,tdy){const catcod=norm(pm.CAT_COD);const dnd=catcod===''?'':(catcod.charAt(0)==='4'?'NON DRY':'DRY');if(dnd==='NON DRY')return null;const brgAktif=norm(pm.BRG_AKTIF).toUpperCase()==='Y';const tglTambah=parseDate(pm.TGL_TAMBAH);const hariAktif=(brgAktif&&tglTambah)?daysBetween(tglTambah,tdy):null;let CI;if(hariAktif!==null&&hariAktif<90){CI='Barang Baru'}else{const h=histagMap.get(pm.PRDCD);CI=(h&&h.ket)?h.ket:''}if(CI==='')return null;const bpbAll=pomggIdx.get(pm.PRDCD)||[];const bpbPos=bpbAll.filter(x=>x.qty>0);const CJ=bpbPos.length;let CK=null,CL=0;if(CJ===1){CK=bpbAll.reduce((mx,x)=>(!mx||x.date>mx)?x.date:mx,null)}else if(CJ>1){const noNopb=bpbAll.filter(x=>x.nopb==='');CK=noNopb.reduce((mx,x)=>(!mx||x.date>mx)?x.date:mx,null)}if(CK)CL=bpbAll.filter(x=>sameDate(x.date,CK)).reduce((s,x)=>s+x.qty,0);const CM=stockMap.has(pm.PRDCD)?stockMap.get(pm.PRDCD):'';const CN=(CL>0&&CM!=='')?(CM/CL):null;let CO='';if(CJ===1&&CN!==null&&CN>=0.999995)CO=`${CI} Belum pernah ada NPB `;else if(CJ===1&&CN!==null&&CN>0.5&&CN<1)CO=`Sisa Stock Masih ada ${(CN*100).toFixed(2)}%`;else if(CK&&sameDate(CK,tdy))CO=`${CI}Datang Hari Ini`;if(CO==='')return null;const firstBpb=bpbAll.length?bpbAll.reduce((mn,x)=>(!mn||x.date<mn)?x.date:mn,null):null;return {CI,CJ,CK,CL,CM,CO,CN,tglTambah,firstBpb}}
+function bb_classifyItem(pm,pomggIdx,stockMap,histagMap,tdy){const catcod=norm(pm.CAT_COD);const dnd=catcod===''?'':(catcod.charAt(0)==='4'?'NON DRY':'DRY');if(dnd==='NON DRY')return null;const brgAktif=norm(pm.BRG_AKTIF).toUpperCase()==='Y';const tglTambah=parseDate(pm.TGL_TAMBAH);const hariAktif=(brgAktif&&tglTambah)?daysBetween(tglTambah,tdy):null;let CI;if(hariAktif!==null&&hariAktif<90){CI='Barang Baru'}else{const h=histagMap.get(pm.PRDCD);CI=(h&&h.ket)?h.ket:''}if(CI==='')return null;const bpbAll=pomggIdx.get(pm.PRDCD)||[];const bpbPos=bpbAll.filter(x=>x.qty>0);const CJ=bpbPos.length;let CK=null,CL=0;if(CJ===1){CK=bpbAll.reduce((mx,x)=>(!mx||x.date>mx)?x.date:mx,null)}else if(CJ>1){const noNopb=bpbAll.filter(x=>x.nopb==='');CK=noNopb.reduce((mx,x)=>(!mx||x.date>mx)?x.date:mx,null)}if(CK)CL=bpbAll.filter(x=>sameDate(x.date,CK)).reduce((s,x)=>s+x.qty,0);const CM=stockMap.has(pm.PRDCD)?stockMap.get(pm.PRDCD):'';const CN=(CL>0&&CM!=='')?(CM/CL):null;let CO='';if(CJ===1&&CN!==null&&CN>=0.999995)CO='Belum pernah NPB ke toko';else if(CJ===1&&CN!==null&&CN>0.5&&CN<1)CO=`Sisa Stock Masih ada ${(CN*100).toFixed(2)}%`;else if(CK&&sameDate(CK,tdy))CO=`${CI}Datang Hari Ini`;if(CO==='')return null;const firstBpb=bpbAll.length?bpbAll.reduce((mn,x)=>(!mn||x.date<mn)?x.date:mn,null):null;return {CI,CJ,CK,CL,CM,CO,CN,tglTambah,firstBpb}}
 function bb_ket2Class(ss){if(ss.jtd===0)return 'Belum Ada JTD Toko';if(ss.pkm0===ss.jtd)return 'PKM Toko 0 (Nol)';if(ss.over===ss.jtd)return 'Over Stock di Toko';return 'Stock Exist masih >50% BPB terakhir'}
 function bb_buildRekap(bahan,ssftStats){const tdy=today0(),masterById=bahan.master,histagMap=bahan.histag,pomggIdx=bahan.pomgg,stockMap=bahan.stock;const out=new Map();for(const pm of bahan.prodmast){if(out.has(pm.PRDCD))continue;const cls=bb_classifyItem(pm,pomggIdx,stockMap,histagMap,tdy);if(!cls)continue;const master=masterById.get(pm.PRDCD),histag=histagMap.get(pm.PRDCD);const ss=ssftStats.get(pm.PRDCD)||{jtd:0,over:0,pkm0:0,est:0};const daysSinceLast=cls.CK?daysBetween(cls.CK,tdy):null;let dsi=0;if(daysSinceLast&&cls.CL!==''&&cls.CM!==''){const soldQty=cls.CL-cls.CM;if(soldQty!==0){const rate=soldQty/daysSinceLast;if(rate)dsi=cls.CM/rate}}if(!isFinite(dsi)||isNaN(dsi))dsi=0;out.set(pm.PRDCD,{PRDCD:pm.PRDCD,DESC2:pm.DESC2,ZONA:master?norm(bb_mget(master,'ZONA')):'',ALAMAT:master?norm(bb_mget(master,'ALAMAT')):'',FRAC:master?num(bb_mget(master,'FRAC')):'',ACOST:master?num(bb_mget(master,'ACOST')):'',PTAG:master?norm(bb_mget(master,'PTAG')):'',TGL_AKTIF:cls.tglTambah,TGL_OPEN_TAG:histag?histag.tglAkhir:null,X_BPB:cls.CJ,FIRST_BPB:cls.firstBpb,LAST_BPB:cls.CK,QTY_BPB:cls.CL,STOCK:cls.CM,DSI:dsi,JTD:ss.jtd,OVER:ss.over,PKM0:ss.pkm0,EST:ss.est,HARI:daysSinceLast!==null?`${daysSinceLast} Hari`:'',KET1:cls.CO,KET2:bb_ket2Class(ss),PERSEN:(cls.CN!==null&&cls.CN!==undefined)?cls.CN:-1})}return [...out.values()].sort((a,b)=>b.PERSEN-a.PERSEN||String(a.PRDCD).localeCompare(String(b.PRDCD),'en',{numeric:true}))}
 function bb_computeCandidates(bahan){const kandidat=bahan.prodmast.filter(pm=>bb_classifyItem(pm,bahan.pomgg,bahan.stock,bahan.histag,today0()));return [...new Set(kandidat.map(x=>x.PRDCD))]}
@@ -72,7 +72,7 @@ function bb_fmt(c,v){if(v===''||v===null||v===undefined)return '';if(bb_dateCols
 function bb_render(arr){const th=$('bb_resultTable').querySelector('thead'),tb=$('bb_resultTable').querySelector('tbody');th.innerHTML='<tr>'+bb_resultCols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>';tb.innerHTML=arr.map(r=>'<tr>'+bb_resultCols.map(c=>{const v=r[bb_colKey[c]];return `<td class="${typeof v==='number'?'num':''}">${esc(bb_fmt(c,v))}</td>`}).join('')+'</tr>').join('');$('bb_summary').textContent=`${arr.length.toLocaleString('id-ID')} item`}
 function bb_renderKesimpulan(){const rows=bbState.rows;if(!rows.length){$('bb_kesimpulan').textContent='Tidak ada item.';return}const tgl=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});bbState.tgl=tgl;const cnt=n=>rows.filter(r=>r.KET2===n).length;const lines=[`*Monitoring Stock Item Barang Baru dan Open TAG*`,tgl,''];const jtd0=cnt('Belum Ada JTD Toko');if(jtd0>0){lines.push('Belum Pernah Ada NPB ke TOKO :',`- ${jtd0} Item Belum Ada JTD Toko`,'')}const stockExist=cnt('Stock Exist masih >50% BPB terakhir'),pkm0=cnt('PKM Toko 0 (Nol)');if(stockExist>0||pkm0>0){lines.push('Stock Sisa di DC');if(stockExist>0)lines.push(`- ${stockExist} Item Stock Exist masih >50% BPB terakhir`);if(pkm0>0)lines.push(`- ${pkm0} Item PKM Toko 0 (Nol)`);lines.push('')}const over=cnt('Over Stock di Toko');if(over>0){lines.push('Over Stock di Toko',`- ${over} Item Over Stock di Toko`,'')}while(lines.length&&lines[lines.length-1]==='')lines.pop();$('bb_kesimpulan').textContent=lines.join('\n')}
 function bb_exportXlsx(){const wb=XLSX.utils.book_new();const data=bbState.rows.map(r=>{const o={};bb_resultCols.forEach(c=>{const v=r[bb_colKey[c]];o[c]=bb_dateCols.has(c)?fmtDate(v):v});return o});XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),'REKAP');const d=bb_ket2Names.map(n=>({KET2:n,ITEM:bbState.rows.filter(r=>r.KET2===n).length}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d),'Rincian');XLSX.writeFile(wb,`Monitoring Stock Item Barang Baru dan Open TAG ${bbState.tgl}.xlsx`)}
-function bb_exportJpg(){const rows=bbState.rows;if(!rows.length)return;const FF='Calibri, Carlito, "Segoe UI", Roboto, Arial, sans-serif',FONT='13px '+FF,BOLD='bold 13px '+FF,TFONT='22px '+FF,RH=19,PAD=5,TH=38,S=1.5,title=`Monitoring Stock Item Barang Baru dan Open TAG ${bbState.tgl}`;const text=rows.map(r=>bb_resultCols.map(c=>{const v=r[bb_colKey[c]];const s=bb_dateCols.has(c)?fmtDate(v):bb_fmt(c,v);return String(s??'')}));const m=document.createElement('canvas').getContext('2d');const widths=bb_resultCols.map((c,j)=>{m.font=BOLD;let w=m.measureText(c).width;m.font=FONT;for(const t of text)w=Math.max(w,m.measureText(t[j]).width);w=Math.ceil(w)+PAD*2;return c==='DESC2'?Math.min(w,360):w});const W=widths.reduce((a,b)=>a+b,0)+3;const per=Math.max(20,Math.floor((Math.floor(14e6/(W*S*S))-TH-RH-6)/RH)),pages=Math.ceil(rows.length/per);for(let pg=0;pg<pages;pg++){const a=pg*per,b=Math.min(rows.length,a+per),H=TH+RH*(b-a+1)+3,cv=document.createElement('canvas');cv.width=Math.ceil(W*S);cv.height=Math.ceil(H*S);const g=cv.getContext('2d');g.scale(S,S);g.fillStyle='#fff';g.fillRect(0,0,W,H);g.textBaseline='middle';g.strokeStyle='#000';g.lineWidth=1;g.fillStyle='#000';g.font=TFONT;g.textAlign='left';g.fillText(title,2,TH/2);const cell=(x,y,w,t,o={})=>{g.strokeRect(x+1.5,y+.5,w,RH);g.fillStyle='#000';g.font=o.bold?BOLD:FONT;g.save();g.beginPath();g.rect(x+2,y+1,w-2,RH-1);g.clip();if(o.al==='r'){g.textAlign='right';g.fillText(t,x+w-PAD+1,y+RH/2+1)}else if(o.al==='c'){g.textAlign='center';g.fillText(t,x+1+w/2,y+RH/2+1)}else{g.textAlign='left';g.fillText(t,x+PAD,y+RH/2+1)}g.restore()};let y=TH,x=0;bb_resultCols.forEach((c,j)=>{cell(x,y,widths[j],c,{bold:true,al:'c'});x+=widths[j]});for(let i=a;i<b;i++){y+=RH;x=0;bb_resultCols.forEach((c,j)=>{const t=text[i][j],right=bb_numCols.has(c);cell(x,y,widths[j],t,{al:right?'r':'l'});x+=widths[j]})}const name=`Monitoring Stock Item Barang Baru dan Open TAG ${bbState.tgl}${pages>1?` (${pg+1})`:''}.jpg`;setTimeout(()=>cv.toBlob(bl=>{const u=URL.createObjectURL(bl),el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)},'image/jpeg',.92),pg*500)}}
+function bb_exportJpg(){const rows=bbState.rows;if(!rows.length)return;const FF='Calibri, Carlito, "Segoe UI", Roboto, Arial, sans-serif',FONT='13px '+FF,BOLD='bold 13px '+FF,TFONT='22px '+FF,RH=19,PAD=5,TH=38,S=1.5,title=`Monitoring Stock Item Barang Baru dan Open TAG ${bbState.tgl}`;const text=rows.map(r=>bb_resultCols.map(c=>{const v=r[bb_colKey[c]];const s=bb_dateCols.has(c)?fmtDate(v):bb_fmt(c,v);return String(s??'')}));const m=document.createElement('canvas').getContext('2d');const widths=bb_resultCols.map((c,j)=>{m.font=BOLD;let w=m.measureText(c).width;m.font=FONT;for(const t of text)w=Math.max(w,m.measureText(t[j]).width);w=Math.ceil(w)+PAD*2;return c==='DESC2'?Math.min(w,360):w});const W=widths.reduce((a,b)=>a+b,0)+3;const per=Math.max(20,Math.floor((Math.floor(14e6/(W*S*S))-TH-RH-6)/RH)),pages=Math.ceil(rows.length/per);for(let pg=0;pg<pages;pg++){const a=pg*per,b=Math.min(rows.length,a+per),H=TH+RH*(b-a+1)+3,cv=document.createElement('canvas');cv.width=Math.ceil(W*S);cv.height=Math.ceil(H*S);const g=cv.getContext('2d');g.scale(S,S);g.fillStyle='#fff';g.fillRect(0,0,W,H);g.textBaseline='middle';g.strokeStyle='#000';g.lineWidth=1;g.fillStyle='#000';g.font=TFONT;g.textAlign='left';g.fillText(title,2,TH/2);const cell=(x,y,w,t,o={})=>{if(o.bg){g.fillStyle=o.bg;g.fillRect(x+1,y+1,w-1,RH-1)}g.strokeRect(x+1.5,y+.5,w,RH);g.fillStyle=o.fg||'#000';g.font=o.bold?BOLD:FONT;g.save();g.beginPath();g.rect(x+2,y+1,w-2,RH-1);g.clip();if(o.al==='r'){g.textAlign='right';g.fillText(t,x+w-PAD+1,y+RH/2+1)}else if(o.al==='c'){g.textAlign='center';g.fillText(t,x+1+w/2,y+RH/2+1)}else{g.textAlign='left';g.fillText(t,x+PAD,y+RH/2+1)}g.restore()};let y=TH,x=0;bb_resultCols.forEach((c,j)=>{cell(x,y,widths[j],c,{bold:true,al:'c',bg:'#2563eb',fg:'#fff'});x+=widths[j]});for(let i=a;i<b;i++){y+=RH;x=0;bb_resultCols.forEach((c,j)=>{const t=text[i][j],right=bb_numCols.has(c);cell(x,y,widths[j],t,{al:right?'r':'l'});x+=widths[j]})}const name=`Monitoring Stock Item Barang Baru dan Open TAG ${bbState.tgl}${pages>1?` (${pg+1})`:''}.jpg`;setTimeout(()=>cv.toBlob(bl=>{const u=URL.createObjectURL(bl),el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)},'image/jpeg',.92),pg*500)}}
 async function bb_identifyBahanFile(f){try{const rows=await bb_readAny(f);let kind=bb_detectKind(rows);if(!kind&&bb_parseMaster(rows))kind='MASTER';return kind}catch(e){return null}}
 
 /* ============================================================
@@ -150,8 +150,8 @@ const W=widths.reduce((a,b)=>a+b,0)+3,rp=rows.map(r=>num(r.RUPIAH)).sort((a,b)=>
 const per=Math.max(20,Math.floor((Math.floor(14e6/(W*S*S))-TH-RH-6)/RH)),pages=Math.ceil(rows.length/per);
 for(let pg=0;pg<pages;pg++){const a=pg*per,b=Math.min(rows.length,a+per),H=TH+RH*(b-a+1)+3,cv=document.createElement('canvas');cv.width=Math.ceil(W*S);cv.height=Math.ceil(H*S);const g=cv.getContext('2d');g.scale(S,S);g.fillStyle='#fff';g.fillRect(0,0,W,H);g.textBaseline='middle';g.strokeStyle='#000';g.lineWidth=1;
 g.fillStyle='#000';g.font=TFONT;g.textAlign='left';g.fillText(title,2,TH/2);
-const cell=(x,y,w,t,o={})=>{if(o.bg){g.fillStyle=o.bg;g.fillRect(x+1,y+1,w-1,RH-1)}g.strokeRect(x+1.5,y+.5,w,RH);g.fillStyle='#000';g.font=o.bold?BOLD:FONT;g.save();g.beginPath();g.rect(x+2,y+1,w-2,RH-1);g.clip();if(o.al==='r'){g.textAlign='right';g.fillText(t,x+w-PAD+1,y+RH/2+1)}else if(o.al==='c'){g.textAlign='center';g.fillText(t,x+1+w/2,y+RH/2+1)}else{g.textAlign='left';g.fillText(t,x+PAD,y+RH/2+1)}g.restore()};
-let y=TH,x=0;itb_JPG_COLS.forEach((c,j)=>{cell(x,y,widths[j],c,{bold:true,al:'c'});x+=widths[j]});
+const cell=(x,y,w,t,o={})=>{if(o.bg){g.fillStyle=o.bg;g.fillRect(x+1,y+1,w-1,RH-1)}g.strokeRect(x+1.5,y+.5,w,RH);g.fillStyle=o.fg||'#000';g.font=o.bold?BOLD:FONT;g.save();g.beginPath();g.rect(x+2,y+1,w-2,RH-1);g.clip();if(o.al==='r'){g.textAlign='right';g.fillText(t,x+w-PAD+1,y+RH/2+1)}else if(o.al==='c'){g.textAlign='center';g.fillText(t,x+1+w/2,y+RH/2+1)}else{g.textAlign='left';g.fillText(t,x+PAD,y+RH/2+1)}g.restore()};
+let y=TH,x=0;itb_JPG_COLS.forEach((c,j)=>{cell(x,y,widths[j],c,{bold:true,al:'c',bg:'#2563eb',fg:'#fff'});x+=widths[j]});
 for(let i=a;i<b;i++){y+=RH;x=0;itb_JPG_COLS.forEach((c,j)=>{const t=text[i][j],right=itb_JPG_NUM.has(c)||t==='-';cell(x,y,widths[j],t,{al:right?'r':'l',bg:c==='RUPIAH'?itb_scaleColor(num(rows[i].RUPIAH),lo,mid,hi):null});x+=widths[j]})}
 const name=`Checking Item tidak bergerak ${itbState.tgl}${pages>1?` (${pg+1})`:''}.jpg`;
 setTimeout(()=>cv.toBlob(bl=>{const u=URL.createObjectURL(bl),el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)},'image/jpeg',.92),pg*500)}}
@@ -177,7 +177,7 @@ async function renderBahanFileList(){
     if(bbKind)labels.add(bb_kindLabel[bbKind]);
     if(itbKinds.has('master'))labels.add('Master');
     if(itbKinds.has('stock'))labels.add('Stock Akhir');
-    if(itbKinds.has('reg'))labels.add('REG/PRG');
+    if(itbKinds.has('reg'))labels.add('REG');
     if(!labels.size){span.textContent='Tidak dikenali';span.className='kind-unknown'}
     else{span.textContent=[...labels].join(' + ');span.className='kind-ok'}
   }));
@@ -187,7 +187,7 @@ $('bahanFile').addEventListener('change',renderBahanFileList);
 async function processBahanCombined(){
   const files=[...($('bahanFile').files||[])];
   if(!files.length){$('messageA').textContent='Upload file BAHAN dulu.';return}
-  setStatus('Memproses');$('messageA').textContent='Membaca & memproses BAHAN untuk kedua aplikasi…';$('barA').style.width='10%';
+  setStatus('Memproses');$('messageA').textContent='Membaca & memproses BAHAN…';$('barA').style.width='10%';
   $('statusBB').textContent='';$('statusBB').className='statusline';
   $('statusITB').textContent='';$('statusITB').className='statusline';
   bbOk=false;itbOk=false;
@@ -199,7 +199,7 @@ async function processBahanCombined(){
     bbState.kandidat=bb_computeCandidates(bahan);
     bbCandidates=bbState.kandidat;
     bbOk=true;
-    $('statusBB').textContent=`Barang Baru: OK — ${bbCandidates.length} item kandidat ditemukan.`;
+    $('statusBB').textContent=`Barang Baru: OK — ${bbCandidates.length} item.`;
     $('statusBB').className='statusline ok';
   }catch(e){
     console.error(e);
@@ -214,7 +214,7 @@ async function processBahanCombined(){
     itbState.kandidat=itb_computeCandidates(bahan2);
     itbCandidates=itbState.kandidat;
     itbOk=true;
-    $('statusITB').textContent=`Item Tidak Bergerak: OK — ${itbCandidates.length} item kandidat ditemukan.`;
+    $('statusITB').textContent=`Item Tidak Bergerak: OK — ${itbCandidates.length} item.`;
     $('statusITB').className='statusline ok';
   }catch(e){
     console.error(e);
@@ -225,7 +225,7 @@ async function processBahanCombined(){
 
   combinedPrdcd=[...new Set([...bbCandidates,...itbCandidates])];
   $('prdcdCount').textContent=combinedPrdcd.length?`${combinedPrdcd.length.toLocaleString('id-ID')} item PRDCD (gabungan Barang Baru + Item Tidak Bergerak)`:'Tidak ada item PRDCD.';
-  $('downloadListBtn').disabled=!combinedPrdcd.length;
+  if(combinedPrdcd.length)downloadPrdcd();
 
   $('step3').hidden=true;$('bb_panel').hidden=true;$('itb_panel').hidden=true;
   if(bbOk||itbOk){
@@ -255,7 +255,7 @@ async function processSsftCombined(){
       bb_render(arr);bb_renderKesimpulan();
       $('bb_exportBtn').disabled=!arr.length;$('bb_exportJpgBtn').disabled=!arr.length;
       $('bb_panel').hidden=false;
-      $('statusBB2').textContent=`Barang Baru: OK — ${arr.length} item masuk Rekap.`;
+      $('statusBB2').textContent=`Barang Baru: OK — ${arr.length} item.`;
       $('statusBB2').className='statusline ok';
     }catch(e){
       console.error(e);
@@ -278,7 +278,7 @@ async function processSsftCombined(){
       itb_render(arr);itb_renderKesimpulan();
       $('itb_exportBtn').disabled=false;$('itb_exportJpgBtn').disabled=false;
       $('itb_panel').hidden=false;
-      $('statusITB2').textContent=`Item Tidak Bergerak: OK — ${arr.length} item masuk Hasil.`;
+      $('statusITB2').textContent=`Item Tidak Bergerak: OK — ${arr.length} item.`;
       $('statusITB2').className='statusline ok';
     }catch(e){
       console.error(e);
@@ -294,7 +294,7 @@ async function processSsftCombined(){
   $('messageB').textContent='Selesai memproses SS-FT.';
 }
 
-$('downloadListBtn').onclick=()=>{const b=new Blob([combinedPrdcd.join('\n')+'\n'],{type:'text/plain'}),u=URL.createObjectURL(b),x=document.createElement('a');x.href=u;x.download='PRDCD_SS-FT.txt';x.click();URL.revokeObjectURL(u)};
+function downloadPrdcd(){const b=new Blob([combinedPrdcd.join('\n')+'\n'],{type:'text/plain'}),u=URL.createObjectURL(b),x=document.createElement('a');x.href=u;x.download='PRDCD_SS-FT.txt';x.click();URL.revokeObjectURL(u)}
 $('processBtn').onclick=processBahanCombined;
 $('processBtn2').onclick=processSsftCombined;
 $('clearBtn').onclick=()=>location.reload();

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="description" content="PWA Check Item"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" href="assets/icon.png"><link rel="apple-touch-icon" href="assets/icon.png"><link rel="stylesheet" href="style.css"><title>Check Item</title></head>
+<body>
+<header class="topbar"><div class="brand"><img class="logo" src="assets/icon.png" alt="" width="48" height="48"><div class="brandtext"><h1>Check Item</h1><p>Barang Baru & Open TAG • Item Tidak Bergerak • 1x Upload BAHAN • 1x Upload SS-FT</p></div></div><span id="status" class="badge ok">Siap</span></header>
+<main>
+
+<section class="panel"><h2>1. BAHAN (Gabungan)</h2>
+<p class="note">Upload semua file BAHAN sekaligus: PRODMAST, POMGG, Master Stock, Stock Akhir, HISTAG (untuk Barang Baru) dan/atau Master, REG 4 bulan, Stock Akhir (untuk Item Tidak Bergerak). File yang sama (Master, Stock Akhir) cukup diupload sekali, otomatis dipakai kedua aplikasi.</p>
+<label class="upload"><b>BAHAN</b><input id="bahanFile" type="file" multiple accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.txt,.prg"></label>
+<ul id="bahanFileList" class="filelist"></ul>
+<div class="controls right"><button id="clearBtn">BERSIHKAN</button><button id="processBtn" class="primary">PROSES</button></div>
+<div class="progress"><div id="barA"></div></div><p id="messageA" class="message"></p>
+<p id="statusBB" class="statusline"></p>
+<p id="statusITB" class="statusline"></p>
+</section>
+
+<section class="panel" id="step2" hidden><div class="panelhead"><h2>2. SS-FT (Gabungan)</h2><div class="controls"><button id="downloadListBtn" disabled>Download Prdcd.txt</button></div></div><p id="prdcdCount" class="message"></p>
+<label class="upload"><b>SS-FT</b><input id="ssftFile" type="file" accept=".xlsx,.xls,.csv,.txt"></label>
+<div class="controls right"><button id="processBtn2" class="primary">PROSES</button></div>
+<div class="progress"><div id="barB"></div></div><p id="messageB" class="message"></p>
+<p id="statusBB2" class="statusline"></p>
+<p id="statusITB2" class="statusline"></p>
+</section>
+
+<section class="panel" id="step3" hidden><h2>3. Hasil</h2>
+
+<div class="subpanel" id="bb_panel" hidden><h3>Barang Baru & Open TAG</h3><div class="panelhead"><div class="controls"><button id="bb_exportBtn" disabled>Export</button><button id="bb_exportJpgBtn" disabled>Export JPG</button></div></div><p id="bb_summary">Belum ada hasil.</p><div class="tablewrap"><table id="bb_resultTable"><thead></thead><tbody></tbody></table></div>
+<h3 style="margin-top:14px">Kesimpulan</h3><pre id="bb_kesimpulan" class="kesimpulan">Belum ada hasil.</pre></div>
+
+<div class="subpanel" id="itb_panel" hidden><h3>Item Tidak Bergerak</h3><div class="panelhead"><div class="controls"><button id="itb_exportBtn" disabled>Export</button><button id="itb_exportJpgBtn" disabled>Export JPG</button></div></div><p id="itb_summary">Belum ada hasil.</p><div class="tablewrap"><table id="itb_resultTable"><thead></thead><tbody></tbody></table></div>
+<h3 style="margin-top:14px">Kesimpulan</h3><pre id="itb_kesimpulan" class="kesimpulan">Belum ada hasil.</pre></div>
+
+</section>
+</main><footer><button type="button" id="panduanLink" class="linkbtn">Panduan</button> • Zie Project • Check Item v 1.0 @2026 • <a href="https://wa.me/6282113327262" target="_blank" rel="noopener">Whatsapp</a></footer>
+<dialog id="panduan"><h2>Panduan pengisian</h2><ol>
+<li>Siapkan "BAHAN": PRODMAST, POMGG, Master Stock, Stock Akhir, HISTAG (Barang Baru) dan/atau Master, 4 bulan file REG/PRG, Stock Akhir (Item Tidak Bergerak). Master &amp; Stock Akhir dipakai bersama, cukup 1 file masing-masing.</li>
+<li>Upload semua file BAHAN sekaligus, lalu tekan "PROSES" di langkah 1. Status tiap aplikasi (lengkap/kurang) akan tampil terpisah.</li>
+<li>Tekan "Download Prdcd.txt" (gabungan PRDCD dari kedua aplikasi yang berhasil diproses)</li>
+<li>Upload 1 file SS-FT hasil scan PLU tersebut, lalu tekan "PROSES" di langkah 2</li>
+<li>Hasil & Kesimpulan tampil terpisah per aplikasi. Salin teks Kesimpulan untuk laporan, atau tekan "EXPORT" untuk Excel masing-masing</li></ol>
+<div class="controls"><button id="panduanClose">TUTUP</button></div></dialog>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script><script src="app.js"></script></body></html>
